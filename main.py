@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 # Configuration
 EXCEL_FILE = os.path.join(os.path.dirname(__file__), "error_codes.xlsx")
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_TOKEN = os.getenv("7348329316:AAEoJtYgzaIj1jrGVsfjhKpDroT6rnUreMM")
 PORT = int(os.getenv("PORT", 10000))
 
 # Debug initial
