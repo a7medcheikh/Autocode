@@ -83,5 +83,5 @@ def set_webhook():
 
 if __name__ == "__main__":
     # Décommenter pour la première configuration
-    set_webhook()
+    # set_webhook()
     app.run(host="0.0.0.0", port=PORT)
