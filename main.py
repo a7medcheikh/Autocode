@@ -1,46 +1,92 @@
 import os
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import pandas as pd
 import requests
+import logging
 
+# Configuration initiale
 app = Flask(__name__)
 
-# Configuration
-EXCEL_FILE = os.path.join(os.path.dirname(__file__), "error_codes.xlsx")
+# Configurer les logs
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Variables d'environnement (à définir sur Render)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 PORT = int(os.getenv("PORT", 10000))
+EXCEL_FILE = "error_codes.xlsx"  # Assurez-vous qu'il est présent dans le dépôt GitHub
 
-# Debug initial
-print("=== Démarrage ===")
-print("Fichiers:", os.listdir("."))
-print("Token présent:", bool(TELEGRAM_TOKEN))
+# Vérification des fichiers et dépendances au démarrage
+logger.info("=== Démarrage du bot ===")
+logger.info(f"Fichiers présents : {os.listdir('.')}")
 
 try:
     df = pd.read_excel(EXCEL_FILE)
-    print("Excel chargé avec succès")
+    logger.info("Fichier Excel chargé avec succès")
 except Exception as e:
-    print("ERREUR Excel:", e)
+    logger.error(f"ERREUR : Impossible de charger le fichier Excel : {e}")
+    raise
 
+# Fonction pour rechercher un code d'erreur
+def search_error_code(code):
+    try:
+        result = df[df["الكود"] == code]
+        return result.iloc[0] if not result.empty else None
+    except Exception as e:
+        logger.error(f"ERREUR lors de la recherche du code : {e}")
+        return None
+
+# Route pour le webhook Telegram
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
         update = request.get_json()
-        print("Reçu:", update)  # Debug
-        
+        logger.info(f"Reçu : {update}")  # Debug des données entrantes
+
         if "message" in update:
             chat_id = update["message"]["chat"]["id"]
             text = update["message"]["text"].strip().upper()
-            
-            # ... (votre logique existante)
-            
+
+            # Recherche du code d'erreur
+            error_info = search_error_code(text)
+
+            if error_info:
+                response = (
+                    f"*الكود*: {error_info['الكود']}\n"
+                    f"*الوصف*: {error_info['الوصف بالعربية']}\n"
+                    f"*الحل*: {error_info['السبب المحتمل']}"
+                )
+            else:
+                response = "⚠️ الكود غير موجود في قاعدة البيانات"
+
+            # Envoi de la réponse
             requests.post(
                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                json={"chat_id": chat_id, "text": "Test réponse", "parse_mode": "Markdown"}
+                json={
+                    "chat_id": chat_id,
+                    "text": response,
+                    "parse_mode": "Markdown"
+                }
             )
-        return "OK", 200
+
+        return jsonify({"status": "success"}), 200
+
     except Exception as e:
-        print("ERREUR webhook:", e)
-        return "ERR", 500
+        logger.error(f"ERREUR dans le webhook : {e}")
+        return jsonify({"status": "error"}), 500
+
+# Configuration du webhook (à exécuter une seule fois)
+def set_webhook():
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook",
+            json={"url": f"https://votre-service.onrender.com/webhook"}
+        )
+        logger.info("Webhook configuré avec succès")
+    except Exception as e:
+        logger.error(f"ERREUR lors de la configuration du webhook : {e}")
 
 if __name__ == "__main__":
+    # Décommenter la ligne suivante pour configurer le webhook au premier démarrage
+     set_webhook()
     app.run(host="0.0.0.0", port=PORT)
