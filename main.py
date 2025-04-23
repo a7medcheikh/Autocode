@@ -75,7 +75,7 @@ def set_webhook():
     try:
         requests.post(
             f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook",
-            json={"url": f"https://votre-service.onrender.com/webhook"}
+            json={"url": f"https://autocode-jg5y.onrender.com/webhook"}
         )
         logger.info("Webhook configuré avec succès")
     except Exception as e:
